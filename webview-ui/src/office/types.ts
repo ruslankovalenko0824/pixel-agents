@@ -56,6 +56,25 @@ export interface Seat {
   assigned: boolean;
 }
 
+/** Activity a character performs at an amenity. Add new kinds here as new
+ *  interactive props are introduced (rest, read, water, ...). */
+export type AmenityActivity = 'coffee';
+
+/** An interactive office prop an idle character can visit. Derived from placed
+ *  furniture at layout-build time — see engine/amenities.ts. */
+export interface Amenity {
+  /** uid of the placed furniture this amenity is derived from (occupancy key). */
+  uid: string;
+  activity: AmenityActivity;
+  /** Approach tile the character stands on while using the amenity. */
+  col: number;
+  row: number;
+  /** Direction the character faces toward the furniture while using it. */
+  facing: Direction;
+  /** Speech-bubble kind shown during the visit. */
+  bubble: 'coffee';
+}
+
 export interface FurnitureInstance {
   sprite: SpriteData;
   /** Pixel x (top-left) */
@@ -165,8 +184,9 @@ export interface Character {
   isActive: boolean;
   /** Assigned seat uid, or null if no seat */
   seatId: string | null;
-  /** Active speech bubble type, or null if none showing */
-  bubbleType: 'permission' | 'waiting' | null;
+  /** Active speech bubble type, or null if none showing. 'coffee' is an
+   *  amenity-visit bubble (idle only); 'permission'/'waiting' are agent status. */
+  bubbleType: 'permission' | 'waiting' | 'coffee' | null;
   /** Only meaningful while bubbleType === 'waiting': true when the agent went
    *  idle waiting on the user (surfaces the "Waiting for input" label);
    *  false/undefined when the agent simply finished its turn (checkmark only,
@@ -176,6 +196,10 @@ export interface Character {
   bubbleTimer: number;
   /** Timer to stay seated while inactive after seat reassignment (counts down to 0) */
   seatTimer: number;
+  /** Amenity currently claimed (walking toward, or using), or null. */
+  amenityTarget: Amenity | null;
+  /** Seconds left in the current amenity-use hold; 0 when not using one. */
+  amenityTimer: number;
   /** Whether this character represents a sub-agent (spawned by Task tool) */
   isSubagent: boolean;
   /** Parent agent ID if this is a sub-agent, null otherwise */

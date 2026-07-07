@@ -3,6 +3,7 @@ import { PALETTE_COUNT } from '../../constants.js';
 import { adjustSprite } from '../colorize.js';
 import type { Direction, SpriteData } from '../types.js';
 import { Direction as Dir } from '../types.js';
+import bubbleCoffeeData from './bubble-coffee.json';
 import bubblePermissionData from './bubble-permission.json';
 import bubblePetData from './bubble-pet.json';
 import bubbleWaitingData from './bubble-waiting.json';
@@ -26,6 +27,9 @@ export const BUBBLE_WAITING_SPRITE: SpriteData = resolveBubbleSprite(bubbleWaiti
 
 /** Heart bubble: pet petting feedback (11x13) */
 export const BUBBLE_HEART_SPRITE: SpriteData = resolveBubbleSprite(bubblePetData);
+
+/** Coffee bubble: shown while a character takes a coffee break (11x13) */
+export const BUBBLE_COFFEE_SPRITE: SpriteData = resolveBubbleSprite(bubbleCoffeeData);
 
 // ════════════════════════════════════════════════════════════════
 // Loaded character sprites (from PNG assets)

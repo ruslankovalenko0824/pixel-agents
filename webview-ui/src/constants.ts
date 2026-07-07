@@ -18,6 +18,13 @@ export const WANDER_MOVES_BEFORE_REST_MAX = 6;
 export const SEAT_REST_MIN_SEC = 120.0;
 export const SEAT_REST_MAX_SEC = 240.0;
 
+// ── Amenities (idle characters visit interactive props) ──────
+/** Chance, per idle wander decision, to visit a free amenity instead of roaming. */
+export const AMENITY_VISIT_CHANCE = 0.35;
+/** How long a character lingers at an amenity, in seconds. */
+export const AMENITY_USE_MIN_SEC = 4.0;
+export const AMENITY_USE_MAX_SEC = 8.0;
+
 // ── Matrix Effect ────────────────────────────────────────────
 export const MATRIX_EFFECT_DURATION_SEC = 0.3;
 export const MATRIX_TRAIL_LENGTH = 6;

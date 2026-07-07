@@ -3,6 +3,7 @@ export { getPetCount, getPetName, getPetSprites, setPetTemplates } from './petSp
 export { getCachedSprite, getOutlineSprite } from './spriteCache.js';
 export type { CharacterSprites } from './spriteData.js';
 export {
+  BUBBLE_COFFEE_SPRITE,
   BUBBLE_HEART_SPRITE,
   BUBBLE_PERMISSION_SPRITE,
   BUBBLE_WAITING_SPRITE,

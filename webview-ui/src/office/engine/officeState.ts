@@ -27,6 +27,7 @@ import { findPath, getWalkableTiles, isWalkable } from '../layout/tileMap.js';
 import { getPetCount, getPetName } from '../sprites/petSpriteData.js';
 import { getLoadedCharacterCount } from '../sprites/spriteData.js';
 import type {
+  Amenity,
   Character,
   FurnitureInstance,
   OfficeLayout,
@@ -43,6 +44,7 @@ import {
   PetState,
   TILE_SIZE,
 } from '../types.js';
+import { buildAmenities } from './amenities.js';
 import { createCharacter, updateCharacter } from './characters.js';
 import { matrixEffectSeeds } from './matrixEffect.js';
 import { createPet, updatePet } from './petEntity.js';
@@ -54,6 +56,10 @@ export class OfficeState {
   blockedTiles: Set<string>;
   furniture: FurnitureInstance[];
   walkableTiles: Array<{ col: number; row: number }>;
+  /** Interactive props idle characters can visit, derived from the layout. */
+  amenities: Amenity[] = [];
+  /** Amenity uids currently claimed by a character (occupancy, persists across ticks). */
+  amenityOccupied: Set<string> = new Set();
   characters: Map<number, Character> = new Map();
   pets: Pet[] = [];
   /** Accumulated time for furniture animation frame cycling */
@@ -75,6 +81,7 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(this.layout.furniture);
     this.furniture = layoutToFurnitureInstances(this.layout.furniture);
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
+    this.amenities = buildAmenities(this.layout.furniture, this.tileMap, this.blockedTiles);
     // Pets are built last because they need walkableTiles populated for spawn.
     this.rebuildPetsFromLayout(this.layout);
   }
@@ -88,6 +95,15 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(layout.furniture);
     this.rebuildFurnitureInstances();
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
+    // Amenities derive from furniture; rebuild and drop any in-flight visits since
+    // approach tiles and uids may have changed.
+    this.amenities = buildAmenities(layout.furniture, this.tileMap, this.blockedTiles);
+    this.amenityOccupied.clear();
+    for (const ch of this.characters.values()) {
+      ch.amenityTarget = null;
+      ch.amenityTimer = 0;
+      if (ch.bubbleType === 'coffee') ch.bubbleType = null;
+    }
 
     // Shift character positions when grid expands left/up
     if (shift && (shift.col !== 0 || shift.row !== 0)) {
@@ -902,6 +918,13 @@ export class OfficeState {
     }
 
     const toDelete: number[] = [];
+    // Reconcile amenity occupancy from live claims so it self-heals when a
+    // character leaves by any path (despawn, direct removal, reassignment).
+    this.amenityOccupied.clear();
+    for (const ch of this.characters.values()) {
+      if (ch.amenityTarget) this.amenityOccupied.add(ch.amenityTarget.uid);
+    }
+    const amenityCtx = { list: this.amenities, occupied: this.amenityOccupied };
     for (const ch of this.characters.values()) {
       // Handle matrix effect animation
       if (ch.matrixEffect) {
@@ -922,7 +945,15 @@ export class OfficeState {
 
       // Temporarily unblock own seat so character can pathfind to it
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles),
+        updateCharacter(
+          ch,
+          dt,
+          this.walkableTiles,
+          this.seats,
+          this.tileMap,
+          this.blockedTiles,
+          amenityCtx,
+        ),
       );
 
       // Tick bubble timer for waiting bubbles

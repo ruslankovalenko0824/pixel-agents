@@ -1,4 +1,7 @@
 import {
+  AMENITY_USE_MAX_SEC,
+  AMENITY_USE_MIN_SEC,
+  AMENITY_VISIT_CHANCE,
   SEAT_REST_MAX_SEC,
   SEAT_REST_MIN_SEC,
   TYPE_FRAME_DURATION_SEC,
@@ -14,6 +17,8 @@ import type { CharacterSprites } from '../sprites/spriteData.js';
 import { isReadingToolName } from '../toolUtils.js';
 import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../types.js';
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
+import type { AmenityContext } from './amenities.js';
+import { pickAmenity } from './amenities.js';
 
 /** Whether a tool should show the reading animation (vs typing). Taxonomy comes
  *  from the active HookProvider via the `providerCapabilities` message. */
@@ -78,6 +83,8 @@ export function createCharacter(
     bubbleType: null,
     bubbleTimer: 0,
     seatTimer: 0,
+    amenityTarget: null,
+    amenityTimer: 0,
     isSubagent: false,
     parentAgentId: null,
     matrixEffect: null,
@@ -95,8 +102,18 @@ export function updateCharacter(
   seats: Map<string, Seat>,
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
+  amenities: AmenityContext,
 ): void {
   ch.frameTimer += dt;
+
+  // An amenity visit is idle-only. If the agent became active (in any state),
+  // abandon it at once: release the claim and drop the coffee bubble.
+  if (ch.isActive && ch.amenityTarget) {
+    amenities.occupied.delete(ch.amenityTarget.uid);
+    ch.amenityTarget = null;
+    ch.amenityTimer = 0;
+    if (ch.bubbleType === 'coffee') ch.bubbleType = null;
+  }
 
   switch (ch.state) {
     case CharacterState.TYPE: {
@@ -160,6 +177,20 @@ export function updateCharacter(
         }
         break;
       }
+      // Using an amenity — hold in place until the timer runs out, then release
+      if (ch.amenityTimer > 0) {
+        ch.amenityTimer -= dt;
+        if (ch.amenityTimer <= 0) {
+          ch.amenityTimer = 0;
+          if (ch.amenityTarget) amenities.occupied.delete(ch.amenityTarget.uid);
+          ch.amenityTarget = null;
+          if (ch.bubbleType === 'coffee') ch.bubbleType = null;
+          ch.wanderCount++;
+          ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC);
+        }
+        break;
+      }
+
       // Countdown wander timer
       ch.wanderTimer -= dt;
       if (ch.wanderTimer <= 0) {
@@ -185,6 +216,22 @@ export function updateCharacter(
             }
           }
         }
+        // Sometimes head to a free amenity (coffee break, ...) instead of roaming
+        if (!ch.amenityTarget && Math.random() < AMENITY_VISIT_CHANCE) {
+          const pick = pickAmenity(ch, amenities, tileMap, blockedTiles);
+          if (pick) {
+            amenities.occupied.add(pick.amenity.uid);
+            ch.amenityTarget = pick.amenity;
+            ch.path = pick.path;
+            ch.moveProgress = 0;
+            ch.state = CharacterState.WALK;
+            ch.frame = 0;
+            ch.frameTimer = 0;
+            ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC);
+            break;
+          }
+        }
+
         if (walkableTiles.length > 0) {
           const target = walkableTiles[Math.floor(Math.random() * walkableTiles.length)];
           const path = findPath(
@@ -236,6 +283,20 @@ export function updateCharacter(
             }
           }
         } else {
+          // Arrived at an amenity approach tile — face it and start the use hold
+          if (
+            ch.amenityTarget &&
+            ch.tileCol === ch.amenityTarget.col &&
+            ch.tileRow === ch.amenityTarget.row
+          ) {
+            ch.state = CharacterState.IDLE;
+            ch.dir = ch.amenityTarget.facing;
+            ch.amenityTimer = randomRange(AMENITY_USE_MIN_SEC, AMENITY_USE_MAX_SEC);
+            ch.bubbleType = ch.amenityTarget.bubble;
+            ch.frame = 0;
+            ch.frameTimer = 0;
+            break;
+          }
           // Check if arrived at assigned seat — sit down for a rest before wandering again
           if (ch.seatId) {
             const seat = seats.get(ch.seatId);

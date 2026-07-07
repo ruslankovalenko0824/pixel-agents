@@ -37,6 +37,7 @@ import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTi
 import { getPetSprites } from '../sprites/petSpriteData.js';
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js';
 import {
+  BUBBLE_COFFEE_SPRITE,
   BUBBLE_HEART_SPRITE,
   BUBBLE_PERMISSION_SPRITE,
   BUBBLE_WAITING_SPRITE,
@@ -529,7 +530,11 @@ function renderBubbles(
     if (ch.bubbleType === 'waiting' && ch.waitingAwaitingInput) continue;
 
     const sprite =
-      ch.bubbleType === 'permission' ? BUBBLE_PERMISSION_SPRITE : BUBBLE_WAITING_SPRITE;
+      ch.bubbleType === 'permission'
+        ? BUBBLE_PERMISSION_SPRITE
+        : ch.bubbleType === 'coffee'
+          ? BUBBLE_COFFEE_SPRITE
+          : BUBBLE_WAITING_SPRITE;
 
     // Compute opacity: permission = full, waiting = fade in last 0.5s
     let alpha = 1.0;
