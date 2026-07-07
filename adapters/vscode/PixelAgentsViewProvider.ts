@@ -50,9 +50,11 @@ import {
 import {
   CONFIG_KEY_AUTO_SHOW_PANEL,
   CONFIG_KEY_AUTO_SPAWN_AGENT,
+  DEFAULT_LANGUAGE,
   GLOBAL_KEY_ALWAYS_SHOW_LABELS,
   GLOBAL_KEY_HOOKS_ENABLED,
   GLOBAL_KEY_HOOKS_INFO_SHOWN,
+  GLOBAL_KEY_LANGUAGE,
   GLOBAL_KEY_LAST_SEEN_VERSION,
   GLOBAL_KEY_SOUND_ENABLED,
   GLOBAL_KEY_WATCH_ALL_SESSIONS,
@@ -277,6 +279,12 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
         }
       } else if (message.type === 'setHooksInfoShown') {
         this.adapter.setSetting(GLOBAL_KEY_HOOKS_INFO_SHOWN, true);
+      } else if (message.type === 'setLanguage') {
+        this.adapter.setSetting(GLOBAL_KEY_LANGUAGE, message.language as string);
+      } else if (message.type === 'discoverAgents') {
+        const found = this.runtime.discoverActiveSessions();
+        console.log(`[Pixel Agents] Discover: adopted ${found} running session(s)`);
+        this.webview?.postMessage({ type: 'discoverResult', found });
       } else if (message.type === 'setWatchAllSessions') {
         const enabled = message.enabled as boolean;
         this.adapter.setSetting(GLOBAL_KEY_WATCH_ALL_SESSIONS, enabled);
@@ -418,6 +426,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
           hooksEnabled,
           hooksInfoShown,
           externalAssetDirectories: config.externalAssetDirectories,
+          language: this.adapter.getSetting<string>(GLOBAL_KEY_LANGUAGE, DEFAULT_LANGUAGE),
         });
 
         // Send workspace folders to webview (only when multi-root)

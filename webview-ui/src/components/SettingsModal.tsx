@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import type { Language } from '../i18n.js';
+import { getLanguage, setLanguage, t, useLanguage } from '../i18n.js';
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js';
 import { transport } from '../transport/index.js';
 import { Button } from './ui/Button.js';
@@ -34,17 +36,43 @@ export function SettingsModal({
   hooksEnabled,
   onToggleHooksEnabled,
 }: SettingsModalProps) {
+  useLanguage();
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled);
 
+  const chooseLanguage = (lang: Language) => {
+    if (lang === getLanguage()) return;
+    setLanguage(lang);
+    transport.send({ type: 'setLanguage', language: lang });
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Settings">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('settings')}>
+      <div className="flex items-center justify-between py-4 px-10 gap-8">
+        <span className="text-base">{t('language')}</span>
+        <div className="flex gap-4">
+          <Button
+            variant={getLanguage() === 'ru' ? 'active' : 'default'}
+            size="sm"
+            onClick={() => chooseLanguage('ru')}
+          >
+            Русский
+          </Button>
+          <Button
+            variant={getLanguage() === 'en' ? 'active' : 'default'}
+            size="sm"
+            onClick={() => chooseLanguage('en')}
+          >
+            English
+          </Button>
+        </div>
+      </div>
       <MenuItem
         onClick={() => {
           transport.send({ type: 'openSessionsFolder' });
           onClose();
         }}
       >
-        Open Sessions Folder
+        {t('openSessionsFolder')}
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -52,7 +80,7 @@ export function SettingsModal({
           onClose();
         }}
       >
-        Export Layout
+        {t('exportLayout')}
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -60,7 +88,7 @@ export function SettingsModal({
           onClose();
         }}
       >
-        Import Layout
+        {t('importLayout')}
       </MenuItem>
       <MenuItem
         onClick={() => {
@@ -68,7 +96,7 @@ export function SettingsModal({
           onClose();
         }}
       >
-        Add Asset Directory
+        {t('addAssetDirectory')}
       </MenuItem>
       {externalAssetDirectories.map((dir) => (
         <div key={dir} className="flex items-center justify-between py-4 px-10 gap-8">
@@ -89,7 +117,7 @@ export function SettingsModal({
         </div>
       ))}
       <Checkbox
-        label="Sound Notifications"
+        label={t('soundNotifications')}
         checked={soundLocal}
         onChange={() => {
           const newVal = !isSoundEnabled();
@@ -99,21 +127,21 @@ export function SettingsModal({
         }}
       />
       <Checkbox
-        label="Watch All Sessions"
+        label={t('watchAllSessions')}
         checked={watchAllSessions}
         onChange={onToggleWatchAllSessions}
       />
       <Checkbox
-        label="Instant Detection (Hooks)"
+        label={t('instantDetection')}
         checked={hooksEnabled}
         onChange={onToggleHooksEnabled}
       />
       <Checkbox
-        label="Always Show Labels"
+        label={t('alwaysShowLabels')}
         checked={alwaysShowOverlay}
         onChange={onToggleAlwaysShowOverlay}
       />
-      <Checkbox label="Debug View" checked={isDebugMode} onChange={onToggleDebugMode} />
+      <Checkbox label={t('debugView')} checked={isDebugMode} onChange={onToggleDebugMode} />
     </Modal>
   );
 }

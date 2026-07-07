@@ -1257,6 +1257,92 @@ function scanGlobalProjectDirs(
 }
 
 /**
+ * One-shot discovery of already-running sessions (the "Call agents" button).
+ * The periodic scanners deliberately skip transcripts that predate server
+ * startup (seeding) and skip the workspace dir while hooks are on — sessions
+ * started before the server are therefore invisible until the user asks.
+ * This scan adopts every recently-active untracked transcript across all
+ * session roots, overriding startup seeding. Returns the number adopted.
+ */
+export function discoverActiveSessions(
+  knownJsonlFiles: Set<string>,
+  nextAgentIdRef: { current: number },
+  agents: AgentStateStore,
+  fileWatchers: Map<number, fs.FSWatcher>,
+  pollingTimers: Map<number, ReturnType<typeof setInterval>>,
+  waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
+  permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
+
+  persistAgents: () => void,
+): number {
+  const projectDirs = new Set<string>(trackedProjectDirs);
+  for (const root of hookProvider?.getAllSessionRoots?.() ?? []) {
+    try {
+      for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (entry.isDirectory()) projectDirs.add(path.join(root, entry.name));
+      }
+    } catch {
+      /* root missing / unreadable -> skip */
+    }
+  }
+
+  const now = Date.now();
+  let adopted = 0;
+  for (const dirPath of projectDirs) {
+    let files: string[];
+    try {
+      files = fs
+        .readdirSync(dirPath)
+        .filter((f) => f.endsWith('.jsonl'))
+        .map((f) => path.join(dirPath, f));
+    } catch {
+      continue;
+    }
+
+    for (const file of files) {
+      const normalizedFile = path.resolve(file);
+      let tracked = false;
+      for (const agent of agents.values()) {
+        if (agent.jsonlFile && path.resolve(agent.jsonlFile) === normalizedFile) {
+          tracked = true;
+          break;
+        }
+      }
+      if (tracked) continue;
+      if (dismissalTracker!.isPermanentlyDismissed(file)) continue;
+      if (dismissalTracker!.isDismissed(file)) continue;
+      // Recently-active only: same activity filter as the global scanner.
+      try {
+        const stat = fs.statSync(file);
+        if (stat.size < GLOBAL_SCAN_ACTIVE_MIN_SIZE) continue;
+        if (now - stat.mtimeMs > GLOBAL_SCAN_ACTIVE_MAX_AGE_MS) continue;
+      } catch {
+        continue;
+      }
+      // Explicit user action overrides startup seeding.
+      dismissalTracker!.clearSeededMtime(file);
+      knownJsonlFiles.add(file);
+      const folderName = folderNameFromProjectDir(path.basename(dirPath));
+      console.log(`[Pixel Agents] Discover: adopting session ${path.basename(file)}`);
+      adoptExternalSession(
+        file,
+        dirPath,
+        nextAgentIdRef,
+        agents,
+        fileWatchers,
+        pollingTimers,
+        waitingTimers,
+        permissionTimers,
+        persistAgents,
+        folderName,
+      );
+      adopted++;
+    }
+  }
+  return adopted;
+}
+
+/**
  * Periodically removes stale external agents whose JSONL files
  * haven't been modified recently.
  */

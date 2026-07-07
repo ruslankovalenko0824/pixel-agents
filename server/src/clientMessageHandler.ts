@@ -35,6 +35,8 @@ const KEY_ALWAYS_SHOW_LABELS = 'pixel-agents.alwaysShowLabels';
 const KEY_WATCH_ALL_SESSIONS = 'pixel-agents.watchAllSessions';
 const KEY_HOOKS_ENABLED = 'pixel-agents.hooksEnabled';
 const KEY_HOOKS_INFO_SHOWN = 'pixel-agents.hooksInfoShown';
+const KEY_LANGUAGE = 'pixel-agents.language';
+const DEFAULT_LANGUAGE = 'ru';
 
 /**
  * Handle incoming ClientMessage from a WebSocket client.
@@ -100,6 +102,17 @@ export function handleClientMessage(
     case 'setHooksInfoShown':
       adapter?.setSetting(KEY_HOOKS_INFO_SHOWN, true);
       break;
+
+    case 'setLanguage':
+      adapter?.setSetting(KEY_LANGUAGE, msg.language as string);
+      break;
+
+    case 'discoverAgents': {
+      const found = runtime?.discoverActiveSessions() ?? 0;
+      console.log(`[Pixel Agents] Discover: adopted ${found} running session(s)`);
+      send({ type: 'discoverResult', found });
+      break;
+    }
 
     case 'addExternalAssetDirectory': {
       const newPath = msg.path as string | undefined;
@@ -186,6 +199,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     hooksEnabled,
     hooksInfoShown: adapter?.getSetting(KEY_HOOKS_INFO_SHOWN, false) ?? false,
     externalAssetDirectories: cfg.externalAssetDirectories,
+    language: adapter?.getSetting(KEY_LANGUAGE, DEFAULT_LANGUAGE) ?? DEFAULT_LANGUAGE,
   });
 
   // Sync runtime refs with the persisted settings so scanners behave correctly

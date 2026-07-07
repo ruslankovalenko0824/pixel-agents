@@ -32,6 +32,7 @@ export type ServerMessage =
   | FloorTilesLoaded
   | WallTilesLoaded
   | SettingsLoaded
+  | DiscoverResult
   | ExternalAssetDirectoriesUpdated
   | WorkspaceFolders
   | AgentDiagnostics;
@@ -49,6 +50,8 @@ export type ClientMessage =
   | SetHooksEnabled
   | SetHooksInfoShown
   | SetWatchAllSessions
+  | SetLanguage
+  | DiscoverAgents
   | ExportLayout
   | ImportLayout
   | OpenSessionsFolder
@@ -257,6 +260,14 @@ export interface SettingsLoaded {
   hooksEnabled: boolean;
   hooksInfoShown: boolean;
   externalAssetDirectories: string[];
+  language?: AnonymousSchema_160;
+}
+
+export type AnonymousSchema_160 = 'ru' | 'en';
+
+export interface DiscoverResult {
+  type: 'discoverResult';
+  found: number;
 }
 
 export interface ExternalAssetDirectoriesUpdated {
@@ -342,6 +353,17 @@ export interface SetHooksInfoShown {
 export interface SetWatchAllSessions {
   type: 'setWatchAllSessions';
   enabled: boolean;
+}
+
+export interface SetLanguage {
+  type: 'setLanguage';
+  language: AnonymousSchema_200;
+}
+
+export type AnonymousSchema_200 = 'ru' | 'en';
+
+export interface DiscoverAgents {
+  type: 'discoverAgents';
 }
 
 export interface ExportLayout {

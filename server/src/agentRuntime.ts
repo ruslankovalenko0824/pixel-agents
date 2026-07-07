@@ -17,6 +17,7 @@ import type { AgentStateStore } from './agentStateStore.js';
 import { DismissalTracker } from './dismissalTracker.js';
 import {
   adoptExternalSessionFromHook,
+  discoverActiveSessions,
   ensureProjectScan,
   isTrackedProjectDir,
   reassignAgentToFile,
@@ -303,6 +304,23 @@ export class AgentRuntime {
       () => this.store.persist(),
       this.watchAllSessions,
       this.hooksEnabled,
+    );
+  }
+
+  /**
+   * One-shot adoption of already-running sessions (the "Call agents" button).
+   * Returns the number of sessions adopted.
+   */
+  discoverActiveSessions(): number {
+    return discoverActiveSessions(
+      this.knownJsonlFiles,
+      this.store.nextAgentId,
+      this.store,
+      this.fileWatchers,
+      this.pollingTimers,
+      this.waitingTimers,
+      this.permissionTimers,
+      () => this.store.persist(),
     );
   }
 

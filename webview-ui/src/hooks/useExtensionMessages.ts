@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { setLanguage } from '../i18n.js';
 import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
 import type { OfficeState } from '../office/engine/officeState.js';
 import { setFloorSprites } from '../office/floorTiles.js';
@@ -246,16 +247,34 @@ export function useExtensionMessages(
           { palette?: number; hueShift?: number; seatId?: string }
         >;
         const folderNames = (msg.folderNames || {}) as Record<number, string>;
-        // Buffer agents — they'll be added in layoutLoaded after seats are built
+        // Agents need seats, so they can only be added once the layout is in.
+        // The VS Code adapter sends existingAgents BEFORE layoutLoaded (buffer,
+        // flush in layoutLoaded); the standalone server sends it AFTER — in
+        // that case the buffer would never flush, so add immediately instead.
         for (const id of incoming) {
           const m = meta[id];
-          pendingAgents.push({
+          const entry = {
             id,
             palette: m?.palette,
             hueShift: m?.hueShift,
             seatId: m?.seatId,
             folderName: folderNames[id],
-          });
+          };
+          if (layoutReadyRef.current) {
+            os.addAgent(
+              entry.id,
+              entry.palette,
+              entry.hueShift,
+              entry.seatId,
+              true,
+              entry.folderName,
+            );
+          } else {
+            pendingAgents.push(entry);
+          }
+        }
+        if (layoutReadyRef.current && os.characters.size > 0) {
+          saveAgentSeats(os);
         }
         setAgents((prev) => {
           const ids = new Set(prev);
@@ -524,6 +543,9 @@ export function useExtensionMessages(
         }
         if (typeof msg.extensionVersion === 'string') {
           setExtensionVersion(msg.extensionVersion as string);
+        }
+        if (msg.language === 'ru' || msg.language === 'en') {
+          setLanguage(msg.language);
         }
       } else if (msg.type === 'externalAssetDirectoriesUpdated') {
         if (Array.isArray(msg.dirs)) {
